@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4 Vibes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="game-container">
+        <video id="bg-video" class="hidden" muted loop></video>
+        <div id="bg-dimmer"></div>
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-layer">
+            <div id="start-screen" class="screen active">
+                <h1 class="menu-title-center">4 VIBES</h1>
+                <div class="menu-center">
+                    <button id="library-btn" class="button library-main-btn" data-i18n="play">PLAY</button>
+                    <div class="cube-row">
+                        <button id="settings-btn" class="cube-btn" title="Configuration">
+                            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </button>
+                        <button id="credits-btn" class="cube-btn" title="Credits">
+                            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                        </button>
+                        <button id="contact-btn" class="cube-btn" title="Contact">
+                            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="settings-screen" class="screen">
+                <div class="settings-header">
+                    <button id="back-btn" class="button" data-i18n="back">BACK</button>
+                    <h2 data-i18n="configuration">CONFIGURATION</h2>
+                </div>
+                <div class="settings-content">
+                    <!-- INPUT SECTION -->
+                    <div class="settings-section">
+                        <h3 class="section-title" data-i18n="input">INPUT</h3>
+                        <div class="key-config">
+                            <div class="key-row">
+                                <span data-i18n="left">LEFT</span>
+                                <button class="key-btn" data-action="left">ArrowLeft</button>
+                            </div>
+                            <div class="key-row">
+                                <span data-i18n="down">DOWN</span>
+                                <button class="key-btn" data-action="down">ArrowDown</button>
+                            </div>
+                            <div class="key-row">
+                                <span data-i18n="up">UP</span>
+                                <button class="key-btn" data-action="up">ArrowUp</button>
+                            </div>
+                            <div class="key-row">
+                                <span data-i18n="right">RIGHT</span>
+                                <button class="key-btn" data-action="right">ArrowRight</button>
+                            </div>
+                            <div class="key-row">
+                                <span data-i18n="pause">PAUSE</span>
+                                <button class="key-btn" data-action="pause">Escape</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GAMEPLAY SECTION -->
+                    <div class="settings-section">
+                        <h3 class="section-title" data-i18n="gameplay">GAMEPLAY</h3>
+                        <div class="setting-row">
+                            <span data-i18n="precision">PRECISION (HIT WINDOW)</span>
+                            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                                <input type="range" id="precision-slider" min="20" max="100" value="50">
+                                <span id="precision-value" style="min-width: 40px; text-align: right;">50px</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AUDIO / VISUALS SECTION -->
+                    <div class="settings-section" style="border-right: none;">
+                        <h3 class="section-title" data-i18n="audiovisuals">AUDIO / VISUALS</h3>
+                        <div class="setting-row">
+                            <span data-i18n="language">LANGUAGE</span>
+                            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                                <select id="language-select" class="button"
+                                    style="padding: 0.3rem 0.6rem; font-size: 0.8rem; border: 1px solid white;">
+                                    <option value="en">ENGLISH</option>
+                                    <option value="es">ESPAÑOL</option>
+                                    <option value="pt">PORTUGUÊS</option>
+                                    <option value="wingdings">WINGDINGS</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <span data-i18n="bgdim">BACKGROUND DIM</span>
+                            <input type="range" id="dim-slider" min="0" max="1" step="0.1" value="0.2">
+                            <span id="dim-value">20%</span>
+                        </div>
+                        <div class="setting-row">
+                            <span data-i18n="longnoteopacity">LONG NOTE OPACITY</span>
+                            <input type="range" id="alpha-slider" min="0.1" max="1.0" step="0.1" value="0.3">
+                            <span id="alpha-value">0.3</span>
+                        </div>
+                        <div class="setting-row">
+                            <span data-i18n="themecolor">THEME COLOR</span>
+                            <div style="display: flex; gap: 10px; align-items: center; justify-content: center;">
+                                <input type="color" id="theme-color-picker" value="#ffffff"
+                                    style="width: 50px; height: 35px; border: 1px solid white; background: transparent; cursor: pointer;">
+                                <button id="reset-theme-btn" class="button" data-i18n="reset"
+                                    style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">RESET</button>
+                            </div>
+                        </div>
+                        <div class="setting-grid">
+                            <div class="toggle-row">
+                                <span data-i18n="lanelights">LANE LIGHTS</span>
+                                <button id="toggle-lights" class="toggle-btn active">ON</button>
+                            </div>
+                        </div>
+                        <div class="setting-row" style="margin-top: 1rem;">
+                            <span class="setting-label" data-i18n="audiooffset">AUDIO OFFSET</span>
+                            <div
+                                style="display: flex; gap: 10px; align-items: center; justify-content: center; flex: 1;">
+                                <input type="range" id="offset-slider" min="-500" max="500" step="10" value="0"
+                                    style="width: 100px;">
+                                <span id="offset-value"
+                                    style="min-width: 50px; text-align: right; margin-right: 10px;">0ms</span>
+                                <button id="calibrate-btn" class="button" data-i18n="calibrate"
+                                    style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">CALIBRATE</button>
+                            </div>
+                        </div>
+                        <div class="setting-row" style="margin-top: 1rem;">
+                            <button id="fullscreen-btn" class="button" data-i18n="fullscreen">FULLSCREEN</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="library-screen" class="screen">
+                <div class="settings-header">
+                    <button id="library-back-btn" class="button" data-i18n="back">BACK</button>
+                    <h2 data-i18n="songlibrary">SONG LIBRARY</h2>
+                </div>
+
+                <div class="library-controls">
+                    <div class="library-row">
+                        <input type="text" id="library-search" placeholder="SEARCH SONG..." class="button"
+                            data-i18n="searchsong">
+                        <label for="audio-upload-new" class="button" id="add-song-btn" data-i18n="addnewsong">ADD NEW
+                            SONG</label>
+                        <input type="file" id="audio-upload-new" accept="audio/*,video/*">
+                    </div>
+
+                    <div class="preplay-settings">
+                        <div class="setting-row">
+                            <span class="setting-label" data-i18n="difficulty">DIFFICULTY</span>
+                            <div class="difficulty-display">
+                                <input type="range" id="difficulty-slider" min="0" max="3" step="1" value="1"
+                                    style="width: 150px;">
+                                <span id="difficulty-value" data-i18n="normal">NORMAL</span>
+                            </div>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="toggle-row">
+                            <span class="setting-label" data-i18n="longnotes">LONG<br>NOTES</span>
+                            <button id="toggle-longnotes" class="toggle-btn active">ON</button>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="toggle-row">
+                            <span class="setting-label" data-i18n="botplay">BOT<br>PLAY</span>
+                            <button id="toggle-bot" class="toggle-btn">OFF</button>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="toggle-row">
+                            <span class="setting-label" data-i18n="ghosttap">GHOST<br>TAP</span>
+                            <button id="toggle-ghost" class="toggle-btn active">ON</button>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="toggle-row">
+                            <span class="setting-label" data-i18n="lifesystem">LIFE<br>SYSTEM</span>
+                            <button id="toggle-life" class="toggle-btn active">ON</button>
+                        </div>
+                        <div class="settings-divider"></div>
+                        <div class="toggle-row">
+                            <span class="setting-label" data-i18n="instadie">INSTA-<br>DIE</span>
+                            <button id="toggle-instadie" class="toggle-btn">OFF</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="library-list">
+                    <!-- Songs will be populated here -->
+                </div>
+            </div>
+
+            <div id="loading-screen" class="screen">
+                <div class="loading-disc"></div>
+                <h2 data-i18n="loading">LOADING...</h2>
+                <p id="loading-song-name"></p>
+                <div class="progress-container">
+                    <div id="progress-bar"></div>
+                </div>
+            </div>
+            <div id="results-screen" class="screen">
+                <h2 data-i18n="results">RESULTS</h2>
+                <div class="stats">
+                    <p><span data-i18n="score">SCORE:</span> <span id="final-score">0</span></p>
+                    <p><span data-i18n="maxcombo">MAX COMBO:</span> <span id="max-combo">0</span></p>
+                    <p><span data-i18n="rank">RANK:</span> <span id="rank-grade">-</span></p>
+                </div>
+                <button id="restart-btn" class="button" data-i18n="continue">CONTINUE</button>
+            </div>
+            <div id="game-over-screen" class="screen">
+                <h1 style="color: #ff3333;" data-i18n="failed">FAILED</h1>
+                <p><span data-i18n="score">SCORE:</span> <span id="fail-score">0</span></p>
+                <div class="menu-diagonal">
+                    <button id="retry-btn" class="button diagonal-btn" data-i18n="retry">RETRY</button>
+                    <button id="fail-menu-btn" class="button diagonal-btn" data-i18n="library">LIBRARY</button>
+                </div>
+            </div>
+
+            <div id="credits-screen" class="screen">
+                <h2 data-i18n="credits">CREDITS</h2>
+                <div class="stats" style="flex-direction: column; align-items: center; gap: 1rem;">
+                    <img src="atlas_profile.jpg" id="credits-profile">
+                    <p style="text-align: center; width: 100%;" data-i18n="creditsmadeby">Made by: Atlas</p>
+                </div>
+                <button id="credits-back-btn" class="button" data-i18n="back">BACK</button>
+            </div>
+
+            <div id="contact-screen" class="screen">
+                <h2 data-i18n="contact">CONTACT</h2>
+                <div class="stats" style="flex-direction: column; text-align: center; gap: 1rem;">
+                    <p><span data-i18n="contactgmail">Gmail:</span> <span
+                            style="color: var(--fg-color);">atlas.yt.je@gmail.com</span></p>
+                    <p style="font-size: 0.9rem; opacity: 0.7; max-width: 400px;" data-i18n="contactnote">Note: I'm not
+                        usually checking
+                        constantly, so I might not read it immediately.</p>
+                </div>
+                <button id="contact-back-btn" class="button" data-i18n="back">BACK</button>
+            </div>
+            <div id="score-display" class="hidden">
+                <button id="pause-btn" class="pause-icon-btn">II</button>
+                <span><span data-i18n="score">Score:</span> <span id="score">0</span> | <span
+                        data-i18n="combo">Combo:</span> <span id="combo">0</span></span>
+            </div>
+
+            <div id="pause-screen" class="screen">
+                <h2 data-i18n="paused">PAUSED</h2>
+                <div class="menu-diagonal">
+                    <button id="resume-btn" class="button diagonal-btn" data-i18n="resume">RESUME</button>
+                    <button id="pause-restart-btn" class="button diagonal-btn" data-i18n="restart">RESTART</button>
+                    <button id="exit-btn" class="button diagonal-btn" data-i18n="exittolibrary">EXIT TO LIBRARY</button>
+                </div>
+            </div>
+            <div id="health-container" class="hidden">
+                <div id="health-bar"></div>
+            </div>
+            <div id="combo-popup" class="combo-popup"></div>
+
+            <div id="calibration-screen" class="screen">
+                <h2 data-i18n="calibration">CALIBRATION</h2>
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <p data-i18n="calibrationinstruction1">TAP SPACEBAR OR STRIKE THE SCREEN</p>
+                    <p style="color: var(--dynamic-color); font-weight: bold;" data-i18n="calibrationinstruction2">
+                        EXACTLY ON THE BEAT</p>
+                    <h3 id="calibration-countdown" style="font-size: 2rem; color: #ff3333; margin-top: 1rem;"></h3>
+                </div>
+
+                <div id="calibration-pulse" class="calibration-pulse"></div>
+
+                <div class="stats" style="margin-top: 2rem; flex-direction: column; align-items: center;">
+                    <p><span data-i18n="taps">TAPS:</span> <span id="cal-taps">0</span> / 10</p>
+                    <p><span data-i18n="avgoffset">AVG OFFSET:</span> <span id="cal-offset">0</span> ms</p>
+                </div>
+
+                <div class="menu-diagonal" style="margin-top: 2rem;">
+                    <button id="cal-save-btn" class="button diagonal-btn hidden" data-i18n="saveandexit">SAVE &
+                        EXIT</button>
+                    <button id="cal-cancel-btn" class="button diagonal-btn" data-i18n="cancel">CANCEL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
