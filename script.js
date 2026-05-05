@@ -8,23 +8,27 @@ class AudioAnalyzer {
         this.dataArray = new Uint8Array(this.bufferLength);
         this.source = null;
         this.audioElement = null;
-        this.delayNode = this.audioContext.createDelay(5.0); // Max 5 seconds delay
+        this.delayNode = this.audioContext.createDelay(5.0);
     }
 
-    async loadAudio(file) {
+    async loadAudio(file, existingElement = null) {
         if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
         }
 
-        const url = URL.createObjectURL(file);
-        this.audioElement = new Audio(url);
+        if (existingElement) {
+            this.audioElement = existingElement;
+        } else {
+            const url = URL.createObjectURL(file);
+            this.audioElement = new Audio(url);
+        }
 
-        this.source = this.audioContext.createMediaElementSource(this.audioElement);
-
-        // Route: Source -> Analyser -> DelayNode -> Destination
-        this.source.connect(this.analyser);
-        this.analyser.connect(this.delayNode);
-        this.delayNode.connect(this.audioContext.destination);
+        if (!this.source) {
+            this.source = this.audioContext.createMediaElementSource(this.audioElement);
+            this.source.connect(this.analyser);
+            this.analyser.connect(this.delayNode);
+            this.delayNode.connect(this.audioContext.destination);
+        }
 
         return new Promise((resolve, reject) => {
             const onCanPlay = () => {
@@ -65,6 +69,32 @@ class AudioAnalyzer {
         return this.dataArray;
     }
 
+    playHitSound() {
+        // Simple synth hit sound using Web Audio
+        if (!this.audioContext) return;
+        
+        try {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, this.audioContext.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+            
+            gain.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+            
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            
+            osc.start();
+            osc.stop(this.audioContext.currentTime + 0.1);
+        } catch (e) {
+            console.error("Hit sound failed", e);
+        }
+    }
+
+    // Simple beat detection based on energy threshold
     detectBeat(sensitivity = 200) {
         this.analyser.getByteFrequencyData(this.dataArray);
         let sum = 0;
@@ -74,10 +104,6 @@ class AudioAnalyzer {
         }
         const average = sum / 10;
         return average > sensitivity;
-    }
-
-    playHitSound(laneIndex) {
-        // [SOUND_DISABLED_FOR_NOW]
     }
 }
 
@@ -574,6 +600,36 @@ const failScoreEl = document.getElementById('fail-score'); // New
 
 // Game State
 let analyzer;
+
+// Global interaction listener to unlock AudioContext
+function unlockAudioContext() {
+    console.log("Interaction detected, unlocking audio...");
+    if (analyzer && analyzer.audioContext.state === 'suspended') {
+        analyzer.audioContext.resume().then(() => {
+            console.log("AudioContext resumed successfully.");
+        });
+    }
+    
+    // Resume menu music if it was blocked
+    if (menuMusic) {
+        if (menuMusic.paused) {
+            menuMusic.play().then(() => {
+                console.log("Menu music started.");
+            }).catch(e => {
+                console.warn("Menu music play failed, retrying on next interaction:", e);
+                return; // Don't remove listeners if it failed
+            });
+        }
+    }
+    
+    // Remove listeners once successfully unlocked (or attempted)
+    document.removeEventListener('click', unlockAudioContext);
+    document.removeEventListener('keydown', unlockAudioContext);
+    document.removeEventListener('touchstart', unlockAudioContext);
+}
+document.addEventListener('click', unlockAudioContext);
+document.addEventListener('keydown', unlockAudioContext);
+document.addEventListener('touchstart', unlockAudioContext);
 
 let lanes = [];
 let isPlaying = false;
