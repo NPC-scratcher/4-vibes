@@ -645,8 +645,14 @@ let spawnCooldown = 0;
 const activeKeys = {};
 let currentFile = null; // Store the current file for restarts
 let resultsTimeout = null;
-let menuMusic = new Audio('videoplayback.m4a');
-menuMusic.loop = true;
+let menuMusic = {
+    play: () => Promise.resolve(),
+    pause: () => {},
+    volume: 1,
+    paused: true,
+    _fadeInterval: null,
+    loop: true
+};
 
 // Gameplay & Accessibility Settings
 let settings = {
