@@ -191,13 +191,41 @@ class Note {
         // If completely passed and finished
         if (this.hit && this.length > 0 && this.y > TARGET_Y + this.length) return;
 
+        let opacity = 1.0;
+        if (settings.hidden) {
+            const distFromTarget = TARGET_Y - this.y;
+            if (distFromTarget < 150) opacity = 0.0;
+            else if (distFromTarget < 350) opacity = (distFromTarget - 150) / 200;
+            
+            // Do not render completely invisible notes
+            if (opacity <= 0 && this.length <= 0) return;
+        }
+
+        ctx.globalAlpha = opacity;
+
         const centerX = laneX + laneWidth / 2;
         const size = 30;
 
         // Draw Tail (Hold Body)
         if (this.length > 0) {
             const rgb = currentThemeRgb;
-            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${settings.longNoteAlpha})`;
+            
+            // Calculate tail opacity if hidden
+            let tailOpacity = opacity;
+            if (settings.hidden) {
+                 const tailDist = TARGET_Y - (this.y - this.length);
+                 if (tailDist < 150) tailOpacity = 0.0;
+                 else if (tailDist < 350) tailOpacity = (tailDist - 150) / 200;
+                 else tailOpacity = 1.0;
+                 // Gradient hold tail
+                 const grad = ctx.createLinearGradient(0, this.y, 0, this.y - this.length);
+                 grad.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity * settings.longNoteAlpha})`);
+                 grad.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${tailOpacity * settings.longNoteAlpha})`);
+                 ctx.fillStyle = grad;
+            } else {
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${settings.longNoteAlpha})`;
+            }
+
             // Tail extends UP from the head (y) to (y - length)
             // But since Y increases as we go down... 
             // The head is at Y. The end of the tail is at Y - length.
@@ -211,7 +239,10 @@ class Note {
         }
 
         // Don't draw head if already hit (unless we want to show it 'stuck'?)
-        if (this.hit) return;
+        if (this.hit) {
+            ctx.globalAlpha = 1.0; // Reset
+            return;
+        }
 
         ctx.beginPath();
 
@@ -261,6 +292,7 @@ class Note {
         }
 
         ctx.stroke();
+        ctx.globalAlpha = 1.0; // Reset
     }
 }
 
@@ -300,10 +332,15 @@ class Lane {
 
         // Identify key for this lane for checking active keys
         let laneKey = null;
-        if (this.index === 0) laneKey = keyBindings.left;
-        else if (this.index === 1) laneKey = keyBindings.down;
-        else if (this.index === 2) laneKey = keyBindings.up;
-        else if (this.index === 3) laneKey = keyBindings.right;
+        let logicalIndex = this.index;
+        if (settings.mirror) {
+            // In mirror mode, the physical key we check is inverted
+            logicalIndex = (LANE_COUNT - 1) - this.index;
+        }
+        if (logicalIndex === 0) laneKey = keyBindings.left;
+        else if (logicalIndex === 1) laneKey = keyBindings.down;
+        else if (logicalIndex === 2) laneKey = keyBindings.up;
+        else if (logicalIndex === 3) laneKey = keyBindings.right;
 
         for (let i = this.notes.length - 1; i >= 0; i--) {
             const note = this.notes[i];
@@ -328,13 +365,13 @@ class Lane {
                     note.length -= note.speed * (deltaTime / 16.67);
 
                     // Score tick for holding
-                    score += 1;
+                    score += Math.floor(1 * getScoreMultiplier());
                     updateUI();
 
                     // Check if fully consumed
                     if (note.length <= 0) {
                         note.dead = true;
-                        score += 50;
+                        score += Math.floor(50 * getScoreMultiplier());
                         this.notes.splice(i, 1);
                         continue;
                     }
@@ -369,6 +406,13 @@ class Lane {
     }
 
     draw(ctx, targetY, keyName, dynamicColor) {
+        ctx.save();
+        if (settings.moving) {
+            // Undulating (wave) effect
+            const waveOffset = Math.sin(Date.now() * 0.005 + this.index * 1.5) * 20; 
+            ctx.translate(waveOffset, 0);
+        }
+
         // Draw Lane Line (wireframe style)
         ctx.strokeStyle = dynamicColor;
         ctx.globalAlpha = 0.2; // Faint lines
@@ -447,6 +491,8 @@ class Lane {
 
         // Draw Notes
         this.notes.forEach(note => note.draw(ctx, this.x, this.width));
+
+        ctx.restore();
     }
 
     triggerHit() {
@@ -643,6 +689,48 @@ let health = 100; // New
 let lastTime = 0;
 let spawnCooldown = 0;
 const activeKeys = {};
+
+function getScoreMultiplier() {
+    if (settings.botPlay) return 0; // Bot play disables score
+    let mult = 1.0;
+    
+    // Insta Die gives +1.5
+    if (settings.instaDie) mult += 1.5;
+    
+    // Hidden gives +0.5
+    if (settings.hidden) mult += 0.5;
+    
+    // Strict gives +0.5
+    if (settings.strict) mult += 0.5;
+
+    // Moving gives +0.5 (makes it harder)
+    if (settings.moving) mult += 0.5;
+
+    // Mirror doesn't affect difficulty significantly, maybe +0.1
+    if (settings.mirror) mult += 0.1;
+    
+    // Difficulty modifier
+    if (settings.difficulty === 0) mult -= 0.2; // Peace
+    else if (settings.difficulty === 2) mult += 0.5; // Hard
+    else if (settings.difficulty === 3) mult += 1.0; // Chaos
+
+    return Math.max(0, mult);
+}
+
+function updateMultiplierDisplays() {
+    const multStr = `x${getScoreMultiplier().toFixed(1)}`;
+    const libEl = document.getElementById('library-multiplier-value');
+    const modEl = document.getElementById('modifier-multiplier-value');
+    if (libEl) libEl.innerText = multStr;
+    if (modEl) modEl.innerText = multStr;
+}
+
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 let currentFile = null; // Store the current file for restarts
 let resultsTimeout = null;
 let menuMusic = {
@@ -667,7 +755,11 @@ let settings = {
     longNotes: true,
     bgDim: 0.2, // Default 20% dimming
     audioOffset: 0, // Calibration offset in ms
-    language: 'en'
+    language: 'en',
+    mirror: false,
+    hidden: false,
+    strict: false,
+    moving: false
 };
 
 // --- i18n Translation Dictionary ---
@@ -686,7 +778,8 @@ const i18n = {
         combo: "Combo:", paused: "PAUSED", resume: "RESUME", restart: "RESTART", exittolibrary: "EXIT TO LIBRARY",
         calibrationinstruction1: "TAP SPACEBAR OR STRIKE THE SCREEN", calibrationinstruction2: "EXACTLY ON THE BEAT",
         taps: "TAPS:", avgoffset: "AVG OFFSET:", saveandexit: "SAVE & EXIT", cancel: "CANCEL", presskey: "PRESS KEY...",
-        peace: "PEACE", hard: "HARD", chaos: "CHAOS", play: "PLAY", delete: "DELETE", on: "ON", off: "OFF"
+        peace: "PEACE", hard: "HARD", chaos: "CHAOS", play: "PLAY", delete: "DELETE", on: "ON", off: "OFF", modifiers: "MODIFIERS", currentmultiplier: "MULT:", modifiersrecommendation: "Choose your modifiers carefully! Strict makes hit window smaller.",
+        mirror: "MIRROR", hidden: "HIDDEN", strict: "STRICT", moving: "MOVING"
     },
     es: {
         library: "BIBLIOTECA", credits: "CRÉDITOS", contact: "CONTACTO", configuration: "CONFIGURACIÓN",
@@ -694,7 +787,7 @@ const i18n = {
         gameplay: "JUGABILIDAD", precision: "PRECISIÓN (MARGEN)", audiovisuals: "AUDIO / GRÁFICOS",
         language: "IDIOMA", bgdim: "OSCURECIMIENTO", longnoteopacity: "OPACIDAD NOTAS LARGAS", themecolor: "COLOR DEL TEMA",
         reset: "PRD", lanelights: "LUCES DE CARRIL", audiooffset: "RETRASO AUDIO", calibrate: "CALIBRAR", fullscreen: "PANTALLA COMPLETA",
-        songlibrary: "BIBLIOTECA", searchsong: "BUSCAR CANCIÓN...", addnewsong: "AÑADIR CANCIÓN NUEVA", difficulty: "DIFICULTAD",
+        songlibrary: "BIBLIOTECA", searchsong: "BUSCAR CANCIÓN...", addnewsong: "AÑADIR CANCIÓN NUEVA", difficulty: "DIFICULDADE",
         normal: "NORMAL", longnotes: "NOTAS\nLARGAS", botplay: "MODO\nBOT", ghosttap: "TOQUE\nFANTASMA", lifesystem: "SISTEMA\nVIDA",
         instadie: "MUERTE\nSÚBITA", loading: "CARGANDO...", results: "RESULTADOS", score: "PUNTUACIÓN:", maxcombo: "COMBO MÁX:",
         rank: "RANGO:", continue: "CONTINUAR", failed: "FALLASTE", retry: "REINTENTAR", creditsmadeby: "Creado por: Atlas",
@@ -702,7 +795,8 @@ const i18n = {
         combo: "Combo:", paused: "PAUSADO", resume: "REANUDAR", restart: "REINICIAR", exittolibrary: "SALIR AL MENÚ",
         calibrationinstruction1: "TOCA ESPACIO O GOLPEA LA PANTALLA", calibrationinstruction2: "EXACTAMENTE EN EL RITMO",
         taps: "TOQUES:", avgoffset: "RETRASO MEDIO:", saveandexit: "GUARDAR Y SALIR", cancel: "CANCELAR", presskey: "PRESIONA...",
-        peace: "PAZ", hard: "DIFÍCIL", chaos: "CAOS", play: "JUGAR", delete: "ELIMINAR", on: "SÍ", off: "NO"
+        peace: "PAZ", hard: "DIFÍCIL", chaos: "CAOS", play: "JUGAR", delete: "ELIMINAR", on: "SÍ", off: "NO", modifiers: "MODIFICADORES", currentmultiplier: "MULT:", modifiersrecommendation: "¡Elige bien tus modificadores! Estricto reduce el margen de acierto.",
+        mirror: "ESPEJO", hidden: "OCULTO", strict: "ESTRICTO", moving: "MOVIMIENTO"
     },
     pt: {
         library: "BIBLIOTECA", credits: "CRÉDITOS", contact: "CONTATO", configuration: "CONFIGURAÇÃO",
@@ -718,7 +812,8 @@ const i18n = {
         combo: "Combo:", paused: "PAUSADO", resume: "RETOMAR", restart: "REINICIAR", exittolibrary: "SAIR PRO MENU",
         calibrationinstruction1: "TOQUE ESPAÇO OU BATA NA TELA", calibrationinstruction2: "EXATAMENTE NA BATIDA",
         taps: "TOQUES:", avgoffset: "ATRASO MÉDIO:", saveandexit: "SALVAR E SAIR", cancel: "CANCELAR", presskey: "PRESSIONE...",
-        peace: "PAZ", hard: "DIFÍCIL", chaos: "CAOS", play: "JOGAR", delete: "EXCLUIR", on: "SIM", off: "NÃO"
+        peace: "PAZ", hard: "DIFÍCIL", chaos: "CAOS", play: "JOGAR", delete: "EXCLUIR", on: "SIM", off: "NÃO", modifiers: "MODIFICADORES", currentmultiplier: "MULT:", modifiersrecommendation: "Escolha seus modificadores com cuidado! Estrito diminui o tempo de reação.",
+        mirror: "ESPELHAR", hidden: "OCULTO", strict: "ESTRITO", moving: "MOVIMENTO"
     }
 };
 
@@ -764,7 +859,10 @@ function setLanguage(lang) {
         { id: 'toggle-ghost', key: 'ghostTap' },
         { id: 'toggle-life', key: 'lifeSystem' },
         { id: 'toggle-longnotes', key: 'longNotes' },
-        { id: 'toggle-instadie', key: 'instaDie' }
+        { id: 'toggle-instadie', key: 'instaDie' },
+        { id: 'toggle-mirror', key: 'mirror' },
+        { id: 'toggle-hidden', key: 'hidden' },
+        { id: 'toggle-strict', key: 'strict' }
     ];
     toggles.forEach(t => updateToggleButton(t.id, settings[t.key]));
 }
@@ -869,7 +967,11 @@ function fadeAudio(audio, targetVolume, duration, onComplete = null) {
 const savedSettings = localStorage.getItem('vibSettings');
 if (savedSettings) {
     try {
-        settings = { ...settings, ...JSON.parse(savedSettings) };
+        let parsed = JSON.parse(savedSettings);
+        if (parsed.difficulty === undefined || parsed.difficulty < 0 || parsed.difficulty > 3) {
+            parsed.difficulty = 1;
+        }
+        settings = { ...settings, ...parsed };
     } catch (e) {
         console.error("Failed to load settings", e);
     }
@@ -1082,16 +1184,22 @@ async function init() {
     updateToggleButton('toggle-lights', settings.laneLights);
     updateToggleButton('toggle-bot', settings.botPlay);
     updateToggleButton('toggle-ghost', settings.ghostTap);
-    updateToggleButton('toggle-ghost', settings.ghostTap);
     updateToggleButton('toggle-life', settings.lifeSystem);
     updateToggleButton('toggle-instadie', settings.instaDie);
+    updateToggleButton('toggle-longnotes', settings.longNotes);
+    updateToggleButton('toggle-mirror', settings.mirror);
+    updateToggleButton('toggle-hidden', settings.hidden);
+    updateToggleButton('toggle-strict', settings.strict);
 
     // Init Sliders
     document.getElementById('alpha-slider').value = settings.longNoteAlpha;
     document.getElementById('alpha-value').innerText = settings.longNoteAlpha;
 
-    document.getElementById('difficulty-slider').value = settings.difficulty;
-    document.getElementById('difficulty-value').innerText = DIFFICULTY_SETTINGS[settings.difficulty].label;
+    setTimeout(() => {
+        document.getElementById('difficulty-slider').value = settings.difficulty;
+        document.getElementById('difficulty-value').innerText = DIFFICULTY_SETTINGS[settings.difficulty].label;
+    }, 100);
+
 
     const offsetSliderInit = document.getElementById('offset-slider');
     const offsetValueInit = document.getElementById('offset-value');
@@ -1108,6 +1216,9 @@ async function init() {
     applyBgDim(settings.bgDim);
     document.getElementById('dim-slider').value = settings.bgDim;
 
+    // Apply loaded settings recursively to UI and mult displays
+    updateMultiplierDisplays();
+
     // UI Toggles State
     const togglesToUpdate = [
         { id: 'toggle-lights', key: 'laneLights' },
@@ -1115,7 +1226,11 @@ async function init() {
         { id: 'toggle-ghost', key: 'ghostTap' },
         { id: 'toggle-life', key: 'lifeSystem' },
         { id: 'toggle-longnotes', key: 'longNotes' },
-        { id: 'toggle-instadie', key: 'instaDie' }
+        { id: 'toggle-instadie', key: 'instaDie' },
+        { id: 'toggle-mirror', key: 'mirror' },
+        { id: 'toggle-hidden', key: 'hidden' },
+        { id: 'toggle-strict', key: 'strict' },
+        { id: 'toggle-moving', key: 'moving' }
     ];
 
     togglesToUpdate.forEach(t => {
@@ -1286,11 +1401,18 @@ function togglePause() {
         lastTime = performance.now(); // Reset lastTime to prevent delta jump
         if (analyzer && analyzer.audioElement) {
             analyzer.audioContext.resume().then(() => {
-                analyzer.audioElement.play();
-                bgVideo.play();
+                const playPromises = [
+                    analyzer.audioElement.play(),
+                    bgVideo.play()
+                ];
+                Promise.all(playPromises).catch(e => {
+                    if (e.name !== 'AbortError') console.error("Audio/Video play failed:", e);
+                });
             });
         } else {
-            bgVideo.play();
+            bgVideo.play().catch(e => {
+                if (e.name !== 'AbortError') console.error("Video play failed:", e);
+            });
         }
     }
 }
@@ -1330,6 +1452,24 @@ function setupSettingsUI() {
             if (s.screen === document.getElementById('library-screen')) populateLibraryList();
         });
     });
+
+    const modifiersBtn = document.getElementById('modifiers-btn');
+    const modifiersScreen = document.getElementById('modifiers-screen');
+    const modifiersBackBtn = document.getElementById('modifiers-back-btn');
+
+    if (modifiersBtn && modifiersScreen) {
+        modifiersBtn.addEventListener('click', () => {
+            libraryScreen.classList.remove('active');
+            modifiersScreen.classList.add('active');
+        });
+    }
+
+    if (modifiersBackBtn && modifiersScreen) {
+        modifiersBackBtn.addEventListener('click', () => {
+            modifiersScreen.classList.remove('active');
+            libraryScreen.classList.add('active');
+        });
+    }
 
     [backBtn, creditsBackBtn, contactBackBtn, libraryBackBtn].forEach(btn => {
         if (!btn) return;
@@ -1386,6 +1526,7 @@ function setupSettingsUI() {
         if (document.getElementById('library-screen').classList.contains('active')) {
             populateLibraryList(document.getElementById('library-search').value);
         }
+        updateMultiplierDisplays();
     });
 
     // Audio Offset Slider
@@ -1479,7 +1620,11 @@ function setupSettingsUI() {
         { id: 'toggle-ghost', key: 'ghostTap' },
         { id: 'toggle-life', key: 'lifeSystem' },
         { id: 'toggle-longnotes', key: 'longNotes' },
-        { id: 'toggle-instadie', key: 'instaDie' }
+        { id: 'toggle-instadie', key: 'instaDie' },
+        { id: 'toggle-mirror', key: 'mirror' },
+        { id: 'toggle-hidden', key: 'hidden' },
+        { id: 'toggle-strict', key: 'strict' },
+        { id: 'toggle-moving', key: 'moving' }
     ];
 
     configToggles.forEach(t => {
@@ -1489,6 +1634,7 @@ function setupSettingsUI() {
             settings[t.key] = !settings[t.key];
             updateToggleButton(t.id, settings[t.key]);
             localStorage.setItem('vibSettings', JSON.stringify(settings));
+            updateMultiplierDisplays();
         });
     });
 
@@ -1678,6 +1824,8 @@ async function showResults() {
     else if (score > 1000) rank = 'D';
 
     finalScoreEl.innerText = score;
+    const finalMultEl = document.getElementById('final-multiplier');
+    if(finalMultEl) finalMultEl.innerText = `x${getScoreMultiplier().toFixed(1)}`;
     maxComboEl.innerText = maxCombo;
     rankEl.innerText = rank;
 
@@ -1726,6 +1874,10 @@ function handleInput(e) {
         else if (e.code === keyBindings.right) laneIndex = 3;
 
         if (laneIndex >= 0) {
+            if (settings.mirror) {
+                // Invert controls
+                laneIndex = (LANE_COUNT - 1) - laneIndex;
+            }
             processInput(laneIndex);
         }
     }
@@ -1756,9 +1908,12 @@ function handleTouch(e) {
     for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         const x = touch.clientX - rect.left;
-        const laneIndex = Math.floor(x / laneWidth);
+        let laneIndex = Math.floor(x / laneWidth);
 
         if (laneIndex >= 0 && laneIndex < LANE_COUNT) {
+            if (settings.mirror) {
+                laneIndex = (LANE_COUNT - 1) - laneIndex;
+            }
             processInput(laneIndex);
 
             // Should valid 'activeKeys' for touch?
@@ -1769,7 +1924,8 @@ function handleTouch(e) {
 }
 
 function processInput(laneIndex) {
-    const hitNote = lanes[laneIndex].checkInput(TARGET_Y, HIT_WINDOW);
+    const windowToUse = settings.strict ? HIT_WINDOW * 0.5 : HIT_WINDOW;
+    const hitNote = lanes[laneIndex].checkInput(TARGET_Y, windowToUse);
 
     if (hitNote) {
         // If it's a long note, we don't give the full score immediately, 
@@ -1778,7 +1934,7 @@ function processInput(laneIndex) {
         // checkInput sets 'hit' to true.
 
         // Use a base score for hitting the head
-        score += 100 + (combo * 10);
+        score += Math.floor((100 + (combo * 10)) * getScoreMultiplier());
         combo++;
         if (combo > maxCombo) maxCombo = combo;
 
@@ -1877,7 +2033,10 @@ function gameLoop(timestamp) {
     if (analyzer.detectBeat(diff.sensitivity)) {
         if (spawnCooldown <= 0) {
             // Spawn in a random lane
-            const randomLane = Math.floor(Math.random() * LANE_COUNT);
+            let randomLane = Math.floor(Math.random() * LANE_COUNT);
+            if (settings.mirror) {
+                randomLane = (LANE_COUNT - 1) - randomLane;
+            }
 
             // Check lane cooldown
             if (lanes[randomLane].cooldown <= 0) {
@@ -1889,7 +2048,11 @@ function gameLoop(timestamp) {
                 // Sometimes spawn a second note for difficulty (if not long)
                 // Also check second lane cooldown
                 if (!isLong && Math.random() < diff.doubleChance) {
-                    const secondLane = (randomLane + 1) % LANE_COUNT;
+                    let secondLane = (randomLane + 1) % LANE_COUNT;
+                    if (settings.mirror) {
+                        // In mirror, the step goes the other way
+                        secondLane = (randomLane - 1 + LANE_COUNT) % LANE_COUNT; 
+                    }
                     if (lanes[secondLane].cooldown <= 0) {
                         lanes[secondLane].spawnNote(NOTE_SPEED, 0);
                     }
@@ -1935,9 +2098,10 @@ function gameLoop(timestamp) {
                 // If it's a long note, we DON'T kill it. 
                 // Lane.update handles the hold logic via 'settings.botPlay' check.
                 if (!nearestNote.hit) {
-                    const hitNote = lane.checkInput(TARGET_Y, HIT_WINDOW);
+                    const windowToUse = settings.strict ? HIT_WINDOW * 0.5 : HIT_WINDOW;
+                    const hitNote = lane.checkInput(TARGET_Y, windowToUse);
                     if (hitNote) {
-                        score += 100 + (combo * 10);
+                        score += Math.floor((100 + (combo * 10)) * getScoreMultiplier());
                         combo++;
                         if (combo > maxCombo) maxCombo = combo;
                         if (settings.lifeSystem) health = Math.min(100, health + 2);
@@ -1949,10 +2113,11 @@ function gameLoop(timestamp) {
             }
         }
 
+        const windowToUse = settings.strict ? HIT_WINDOW * 0.5 : HIT_WINDOW;
         lane.update(
             clampedDelta,
             TARGET_Y,
-            HIT_WINDOW,
+            windowToUse,
             () => { /* onHit (handled in keydown) */ },
             () => { // onMiss
                 combo = 0;
@@ -1999,6 +2164,20 @@ function gameLoop(timestamp) {
             ctx.lineTo(x, y);
         }
         ctx.stroke();
+    }
+
+    if (analyzer && analyzer.audioElement) {
+        const currentTime = analyzer.audioElement.currentTime || 0;
+        const duration = analyzer.audioElement.duration || 0;
+        const timeDisplay = document.getElementById('time-display');
+        if (timeDisplay) {
+            timeDisplay.innerText = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+        }
+    }
+    
+    const multDisplay = document.getElementById('multiplier-display');
+    if (multDisplay && isPlaying) {
+        multDisplay.innerText = `x${getScoreMultiplier().toFixed(1)}`;
     }
 
     requestAnimationFrame(gameLoop);

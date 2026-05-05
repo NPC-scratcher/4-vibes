@@ -74,6 +74,12 @@
                                 <span id="precision-value" style="min-width: 40px; text-align: right;">50px</span>
                             </div>
                         </div>
+                        <div class="setting-row">
+                            <div class="toggle-row" style="flex-direction: row; gap: 1rem;">
+                                <span data-i18n="ghosttap">GHOST TAP</span>
+                                <button id="toggle-ghost" class="toggle-btn active">ON</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- AUDIO / VISUALS SECTION -->
@@ -159,35 +165,66 @@
                             </div>
                         </div>
                         <div class="settings-divider"></div>
-                        <div class="toggle-row">
-                            <span class="setting-label" data-i18n="longnotes">LONG<br>NOTES</span>
-                            <button id="toggle-longnotes" class="toggle-btn active">ON</button>
-                        </div>
-                        <div class="settings-divider"></div>
-                        <div class="toggle-row">
-                            <span class="setting-label" data-i18n="botplay">BOT<br>PLAY</span>
-                            <button id="toggle-bot" class="toggle-btn">OFF</button>
-                        </div>
-                        <div class="settings-divider"></div>
-                        <div class="toggle-row">
-                            <span class="setting-label" data-i18n="ghosttap">GHOST<br>TAP</span>
-                            <button id="toggle-ghost" class="toggle-btn active">ON</button>
-                        </div>
-                        <div class="settings-divider"></div>
-                        <div class="toggle-row">
-                            <span class="setting-label" data-i18n="lifesystem">LIFE<br>SYSTEM</span>
-                            <button id="toggle-life" class="toggle-btn active">ON</button>
-                        </div>
-                        <div class="settings-divider"></div>
-                        <div class="toggle-row">
-                            <span class="setting-label" data-i18n="instadie">INSTA-<br>DIE</span>
-                            <button id="toggle-instadie" class="toggle-btn">OFF</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 1rem;">
+                            <button id="modifiers-btn" class="button">MODIFIERS</button>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: var(--theme-color);">
+                                <span data-i18n="currentmultiplier">MULT:</span> <span id="library-multiplier-value">x1.0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div id="library-list">
                     <!-- Songs will be populated here -->
+                </div>
+            </div>
+
+            <div id="modifiers-screen" class="screen">
+                <div class="settings-header">
+                    <button id="modifiers-back-btn" class="button" data-i18n="back">BACK</button>
+                    <h2 data-i18n="modifiers">MODIFIERS</h2>
+                </div>
+                <div class="settings-content" style="padding-top: 2rem;">
+                    <div style="text-align: center; margin-bottom: 2rem; font-size: 1.5rem; font-weight: bold; color: var(--theme-color);">
+                        <span data-i18n="currentmultiplier">MULT:</span> <span id="modifier-multiplier-value">x1.0</span>
+                    </div>
+                    <div class="settings-section" style="border: none;">
+                        <div class="setting-grid" style="grid-template-columns: repeat(2, 1fr); gap: 2rem;">
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="longnotes">LONG NOTES</span>
+                                <button id="toggle-longnotes" class="toggle-btn active">ON</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="botplay">BOT PLAY</span>
+                                <button id="toggle-bot" class="toggle-btn">OFF</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="lifesystem">LIFE SYSTEM</span>
+                                <button id="toggle-life" class="toggle-btn active">ON</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="instadie">INSTA-DIE</span>
+                                <button id="toggle-instadie" class="toggle-btn">OFF</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="mirror">MIRROR</span>
+                                <button id="toggle-mirror" class="toggle-btn">OFF</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="hidden">HIDDEN</span>
+                                <button id="toggle-hidden" class="toggle-btn">OFF</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="strict">STRICT</span>
+                                <button id="toggle-strict" class="toggle-btn">OFF</button>
+                            </div>
+                            <div class="toggle-row">
+                                <span class="setting-label" data-i18n="moving">MOVING</span>
+                                <button id="toggle-moving" class="toggle-btn">OFF</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="text-align: center; margin-top: 2rem; font-size: 1rem; opacity: 0.8;" data-i18n="modifiersrecommendation">Choose your modifiers carefully! Some increase score, while others make it easier.</p>
                 </div>
             </div>
 
@@ -203,6 +240,7 @@
                 <h2 data-i18n="results">RESULTS</h2>
                 <div class="stats">
                     <p><span data-i18n="score">SCORE:</span> <span id="final-score">0</span></p>
+                    <p><span>MULTIPLIER:</span> <span id="final-multiplier">x1.0</span></p>
                     <p><span data-i18n="maxcombo">MAX COMBO:</span> <span id="max-combo">0</span></p>
                     <p><span data-i18n="rank">RANK:</span> <span id="rank-grade">-</span></p>
                 </div>
@@ -239,8 +277,15 @@
             </div>
             <div id="score-display" class="hidden">
                 <button id="pause-btn" class="pause-icon-btn">II</button>
-                <span><span data-i18n="score">Score:</span> <span id="score">0</span> | <span
-                        data-i18n="combo">Combo:</span> <span id="combo">0</span></span>
+                <span style="display: flex; gap: 1rem; align-items: center;">
+                    <span><span data-i18n="score">Score:</span> <span id="score">0</span></span>
+                    <span>|</span>
+                    <span><span data-i18n="combo">Combo:</span> <span id="combo">0</span></span>
+                    <span>|</span>
+                    <span id="time-display">0:00 / 0:00</span>
+                    <span>|</span>
+                    <span id="multiplier-display">x1.0</span>
+                </span>
             </div>
 
             <div id="pause-screen" class="screen">
